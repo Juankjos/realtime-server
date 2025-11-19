@@ -52,7 +52,7 @@ io.on('connection', (socket) => {
   if (state?.lastLoc)  socket.emit('location:live',  state.lastLoc);
 
   // --------- LOCATION ---------
-  socket.on('location:update', (msg = {}) => {
+  socket.on('location:update', (msg = {}, cb) => {
     const payload = {
       reportId: asNum(reportId),
       tecId: safeTecId,
@@ -62,17 +62,21 @@ io.on('connection', (socket) => {
       bearing: asNum(msg.bearing),
       ts: asNum(msg.ts, Date.now()),
     };
-    if (!Number.isFinite(payload.lat) || !Number.isFinite(payload.lng)) return;
+    if (!Number.isFinite(payload.lat) || !Number.isFinite(payload.lng)) {
+      if (typeof cb === 'function') cb({ ok: false, reason: 'invalid_coords' });
+      return;
+    }
 
     const st = roomsState.get(room) || {};
     st.lastLoc = payload;
     roomsState.set(room, st);
 
     io.to(room).emit('location:live', payload);
+    if (typeof cb === 'function') cb({ ok: true });
   });
 
   // --------- DESTINATION ---------
-  socket.on('destination:update', (msg = {}) => {
+  socket.on('destination:update', (msg = {}, cb) => {
     const payload = {
       reportId: asNum(reportId),
       tecId: safeTecId,
@@ -81,13 +85,17 @@ io.on('connection', (socket) => {
       address: (msg.address ?? null),
       ts: Date.now(),
     };
-    if (!Number.isFinite(payload.lat) || !Number.isFinite(payload.lng)) return;
+    if (!Number.isFinite(payload.lat) || !Number.isFinite(payload.lng)) {
+      if (typeof cb === 'function') cb({ ok: false, reason: 'invalid_coords' });
+      return;
+    }
 
     const st = roomsState.get(room) || {};
     st.lastDest = payload;
     roomsState.set(room, st);
 
     io.to(room).emit('destination:live', payload);
+    if (typeof cb === 'function') cb({ ok: true });
   });
 
   // --------- CHAT: HISTORY (con paginación opcional) ---------
